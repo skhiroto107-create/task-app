@@ -140,6 +140,7 @@ h1{font-size:34px;line-height:1.1;margin:0;font-weight:700;letter-spacing:-.01em
 .big::placeholder,.note::placeholder{color:var(--faint)}
 .note{width:100%;border:0;background:none;font-size:16px;line-height:1.5;color:var(--sub);resize:none;outline:none;min-height:48px;padding:0 0 8px;overflow-y:auto;display:block}
 body.lock{overflow:hidden}
+.sheet.kb{top:calc(env(safe-area-inset-top) + 8px);bottom:auto;border-radius:16px;transition:none}
 .sheet{overscroll-behavior:contain}
 .lbl{font-size:12px;color:var(--sub);font-weight:600;margin:14px 0 8px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -394,13 +395,14 @@ function stopVoice(){
 
 /* ---------- sheets ---------- */
 function fitSheet(){
-  // キーボードが出ても入力欄が隠れたり画面がずれたりしないよう、見えている範囲に合わせる
+  // キーボードが出ている間は、追加画面を画面の上側に固定する。
+  // （下に付けたままだと、Task 名とメモを切り替えるたびに iPhone が画面をずらし、それに合わせて画面が動く…を繰り返して揺れるため）
   const vv=window.visualViewport,sh=$('sheet');if(!sh)return;
-  if(!vv||!sh.classList.contains('show')){sh.style.bottom='';sh.style.maxHeight='';return}
-  const kb=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);
-  sh.style.bottom=kb+'px';sh.style.maxHeight=Math.round(vv.height*0.92)+'px';
+  const kbH=vv?Math.max(0,window.innerHeight-vv.height):0;
+  if(!vv||!sh.classList.contains('show')||kbH<120){sh.classList.remove('kb');sh.style.maxHeight='';return}
+  sh.classList.add('kb');sh.style.maxHeight=Math.round(vv.height-16)+'px';
 }
-if(window.visualViewport){visualViewport.addEventListener('resize',fitSheet);visualViewport.addEventListener('scroll',fitSheet)}
+if(window.visualViewport)visualViewport.addEventListener('resize',fitSheet);
 function openSheet(html,after){$('sheetBody').innerHTML=html;$('sheet').scrollTop=0;$('sheet').classList.add('show');$('scrim').classList.add('show');document.body.classList.add('lock');after&&after();fitSheet()}
 function closeSheet(){stopVoice();$('sheet').classList.remove('show');$('scrim').classList.remove('show');document.body.classList.remove('lock');document.activeElement&&document.activeElement.blur();fitSheet()}
 $('scrim').onclick=closeSheet;
@@ -425,7 +427,7 @@ function taskSheet(x,preset){
     ${isNew?'':'<button class="del" id="sDel">Task を削除</button>'}`;
     const b=$('sheetBody'), keep=()=>{st.t=$('sT').value;st.n=$('sN').value};
     const nEl=$('sN'),grow=()=>{nEl.style.height='auto';nEl.style.height=Math.min(nEl.scrollHeight,Math.round((window.visualViewport?visualViewport.height:innerHeight)*0.35))+'px'};
-    nEl.addEventListener('input',()=>{st.n=nEl.value;grow()});nEl.addEventListener('focus',()=>setTimeout(()=>{fitSheet();nEl.scrollIntoView({block:'nearest'})},300));grow();
+    nEl.addEventListener('input',()=>{st.n=nEl.value;grow()});grow();
     // 期日・時刻・カテゴリーは画面を作り直さずにその場で更新（iPhone の日付選択が閉じないように）
     const sync=()=>{
       const custom=!!st.d&&!opts.some(o=>o[0]===st.d);
