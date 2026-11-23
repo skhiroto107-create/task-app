@@ -363,25 +363,37 @@ function taskSheet(x,preset){
   const st=x?{...x}:{t:'',c:filter!=='all'?filter:(S.cats[0]?.id||''),d:preset||'',tm:'',n:''};
   const draw=()=>{
     const t=today(),opts=[['','ToDo'],[t,'今日'],[addDays(1),'明日'],[addDays(7),'1週間後']];
-    const custom=st.d&&!opts.some(o=>o[0]===st.d);
     $('sheetBody').innerHTML=`<div class="shead"><button class="link" id="sCancel">キャンセル</button><b>${isNew?'新規 Task':'編集'}</b><button class="link strong" id="sSave">${isNew?'追加':'完了'}</button></div>
     <div class="trow"><input class="big" id="sT" placeholder="Task 名" maxlength="200" value="${esc(st.t)}" enterkeyhint="done">${voiceOK()?`<button class="mic${listening?' on':''}" id="sMic" aria-label="${listening?'音声入力を止める':'音声で入力'}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21"/></svg></button>`:''}</div>
     <p class="heard" id="sHeard"></p>
     <textarea class="note" id="sN" placeholder="メモ" maxlength="2000">${esc(st.n||'')}</textarea>
     <div class="hr"></div>
     <div class="lbl">期日</div>
-    <div class="chips">${opts.map(o=>`<button class="chip${st.d===o[0]?' on':''}" data-d="${o[0]}">${o[1]}</button>`).join('')}
-      <label class="chip${custom?' on':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>${custom?md(st.d):'日付を選ぶ'}<input type="date" id="sD" value="${st.d||''}"></label></div>
-    ${st.d?`<div class="lbl">時刻</div><div class="chips"><button class="chip${!st.tm?' on':''}" data-tm="">指定なし</button><label class="chip${st.tm?' on':''}">${st.tm||'時刻を選ぶ'}<input type="time" id="sTm" value="${st.tm||''}"></label></div>`:''}
+    <div class="chips">${opts.map(o=>`<button class="chip" data-d="${o[0]}">${o[1]}</button>`).join('')}
+      <label class="chip" id="sDChip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span id="sDLbl"></span><input type="date" id="sD" value="${st.d||''}"></label></div>
+    <div id="sTmRow"><div class="lbl">時刻</div><div class="chips"><button class="chip" data-tm="">指定なし</button><label class="chip" id="sTmChip"><span id="sTmLbl"></span><input type="time" id="sTm" value="${st.tm||''}"></label></div></div>
     <div class="lbl">カテゴリー</div>
     <div class="chips">${S.cats.map(c=>`<button class="chip${st.c===c.id?' on':''}" data-c="${c.id}"><i class="dot" style="background:${c.color}"></i>${esc(c.name)}</button>`).join('')}</div>
     ${isNew?'':'<button class="del" id="sDel">Task を削除</button>'}`;
     const b=$('sheetBody'), keep=()=>{st.t=$('sT').value;st.n=$('sN').value};
-    b.querySelectorAll('[data-d]').forEach(e=>e.onclick=()=>{keep();st.d=e.dataset.d;if(!st.d)st.tm='';draw()});
-    b.querySelectorAll('[data-tm]').forEach(e=>e.onclick=()=>{keep();st.tm='';draw()});
-    b.querySelectorAll('[data-c]').forEach(e=>e.onclick=()=>{keep();st.c=e.dataset.c;draw()});
-    $('sD').onchange=e=>{keep();st.d=e.target.value;draw()};
-    if($('sTm'))$('sTm').onchange=e=>{keep();st.tm=e.target.value;draw()};
+    // 期日・時刻・カテゴリーは画面を作り直さずにその場で更新（iPhone の日付選択が閉じないように）
+    const sync=()=>{
+      const custom=!!st.d&&!opts.some(o=>o[0]===st.d);
+      b.querySelectorAll('[data-d]').forEach(e=>e.classList.toggle('on',e.dataset.d===st.d));
+      $('sDChip').classList.toggle('on',custom);$('sDLbl').textContent=custom?md(st.d):'日付を選ぶ';
+      $('sTmRow').style.display=st.d?'':'none';
+      b.querySelector('[data-tm]').classList.toggle('on',!st.tm);
+      $('sTmChip').classList.toggle('on',!!st.tm);$('sTmLbl').textContent=st.tm||'時刻を選ぶ';
+      b.querySelectorAll('[data-c]').forEach(e=>e.classList.toggle('on',e.dataset.c===st.c));
+    };
+    b.querySelectorAll('[data-d]').forEach(e=>e.onclick=()=>{st.d=e.dataset.d;if(!st.d){st.tm='';$('sTm').value=''}$('sD').value=st.d;sync()});
+    b.querySelector('[data-tm]').onclick=()=>{st.tm='';$('sTm').value='';sync()};
+    b.querySelectorAll('[data-c]').forEach(e=>e.onclick=()=>{st.c=e.dataset.c;sync()});
+    const onD=e=>{st.d=e.target.value;if(!st.d){st.tm='';$('sTm').value=''}sync()};
+    const onTm=e=>{st.tm=e.target.value;sync()};
+    $('sD').addEventListener('change',onD);$('sD').addEventListener('input',onD);
+    $('sTm').addEventListener('change',onTm);$('sTm').addEventListener('input',onTm);
+    sync();
     $('sT').onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$('sSave').click()}};
     if($('sMic'))$('sMic').onclick=()=>listening?stopVoice():startVoice();
     $('sCancel').onclick=closeSheet;
