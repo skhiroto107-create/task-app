@@ -1,43 +1,48 @@
-// Task の同期 API（Vercel の Upstash Redis / KV を使用）
-// 同期コードを SHA-256 にした値をキーに、データを1つの JSON として保存します。
+// Task の同期 API（Vercel + Neon Postgres）
+// 同期コードを SHA-256 にした値をキーに、データを1行の JSON として保存します。
 const crypto = require('crypto');
+const { neon } = require('@neondatabase/serverless');
 
-const URL_ = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+const DB_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 const MAX = 900 * 1024;
+let sql = null, ready = null;
 
-async function redis(path, body) {
-  const r = await fetch(`${URL_}/${path}`, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: { Authorization: `Bearer ${TOKEN}` },
-    body,
-  });
-  if (!r.ok) throw new Error('redis ' + r.status);
-  return (await r.json()).result;
+function db() {
+  if (!sql) sql = neon(DB_URL);
+  if (!ready) ready = sql`CREATE TABLE IF NOT EXISTS task_sync (
+      k TEXT PRIMARY KEY, v BIGINT NOT NULL, body JSONB NOT NULL, updated_at TIMESTAMPTZ DEFAULT now())`
+    .catch(e => { ready = null; throw e; });
+  return ready.then(() => sql);
 }
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  if (!URL_ || !TOKEN) return res.status(500).json({ error: 'storage_not_configured' });
+  if (!DB_URL) return res.status(500).json({ error: 'storage_not_configured' });
   const code = String(req.headers['x-sync-key'] || '');
   if (code.length < 8 || code.length > 200) return res.status(400).json({ error: 'bad_key' });
-  const key = 'task:' + crypto.createHash('sha256').update(code).digest('hex');
+  const key = crypto.createHash('sha256').update(code).digest('hex');
 
   try {
-    const raw = await redis(`get/${key}`);
-    const cur = raw ? JSON.parse(raw) : null;
-
-    if (req.method === 'GET') return res.status(200).json(cur || { v: 0, cats: null, tasks: null });
-
+    const q = await db();
+    if (req.method === 'GET') {
+      const rows = await q`SELECT v, body FROM task_sync WHERE k = ${key}`;
+      if (!rows.length) return res.status(200).json({ v: 0, cats: null, tasks: null });
+      return res.status(200).json({ v: Number(rows[0].v), cats: rows[0].body.cats, tasks: rows[0].body.tasks });
+    }
     if (req.method === 'PUT') {
       const d = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       if (!d || !Array.isArray(d.tasks) || !Array.isArray(d.cats) || typeof d.v !== 'number')
         return res.status(400).json({ error: 'bad_data' });
-      // 新しい方を残す（古い端末からの上書きを防ぐ）
-      if (cur && cur.v > d.v) return res.status(409).json(cur);
-      const out = JSON.stringify({ v: d.v, cats: d.cats, tasks: d.tasks });
-      if (out.length > MAX) return res.status(413).json({ error: 'too_large' });
-      await redis(`set/${key}`, out);
+      const body = JSON.stringify({ cats: d.cats, tasks: d.tasks });
+      if (body.length > MAX) return res.status(413).json({ error: 'too_large' });
+      // 新しい方だけを保存（古い端末からの上書きを防ぐ）
+      const saved = await q`INSERT INTO task_sync (k, v, body) VALUES (${key}, ${d.v}, ${body}::jsonb)
+        ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v, body = EXCLUDED.body, updated_at = now()
+        WHERE task_sync.v <= EXCLUDED.v RETURNING v`;
+      if (!saved.length) {
+        const cur = await q`SELECT v, body FROM task_sync WHERE k = ${key}`;
+        return res.status(409).json({ v: Number(cur[0].v), cats: cur[0].body.cats, tasks: cur[0].body.tasks });
+      }
       return res.status(200).json({ ok: true, v: d.v });
     }
     res.setHeader('Allow', 'GET, PUT');

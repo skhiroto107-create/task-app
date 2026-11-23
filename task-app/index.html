@@ -564,7 +564,7 @@ function syncSheet(){
       const connect=async(code,isNew)=>{
         setSync('busy');
         try{const {status,data}=await api('GET',null,code);
-          if(status===500)return draw('同期の保存先がまだ設定されていません（Vercel の Storage を確認してください）');
+          if(status===500)return draw('同期の保存先がまだ設定されていません（Vercel の Storage で Neon を接続してください）');
           if(status!==200||!data)throw 0;
           syncCode=code;try{localStorage.setItem(KEY+'-sync',code)}catch(e){}
           if(Array.isArray(data.tasks)&&data.v>0&&!isNew){adopt(data);toast('同期しました（'+data.tasks.length+'件）')}

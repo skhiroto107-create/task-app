@@ -4,13 +4,14 @@ iPhone 向けのシンプルなタスク管理アプリ（カテゴリー・期�
 
 ## 構成
 - `index.html` … アプリ本体（ビルド不要）
-- `api/data.js` … 同期用 API（Vercel Functions）
+- `api/data.js` … 同期用 API（Vercel Functions + Neon Postgres）
+- `package.json` … Neon のドライバ
 - `manifest.json` / `sw.js` / `icons/` … ホーム画面追加・オフライン用
 
 ## Vercel の設定
 1. このリポジトリを Vercel で Import（Framework Preset は「Other」）
-2. プロジェクトの「Storage」→「Upstash for Redis」（または KV）を作成してこのプロジェクトに Connect
-   - 環境変数 `KV_REST_API_URL` / `KV_REST_API_TOKEN`（または `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`）が自動で入ります
+2. プロジェクトの「Storage」→「Neon」（Free プラン）を作成してこのプロジェクトに Connect
+   - 環境変数 `DATABASE_URL` が自動で入ります（テーブルは初回アクセス時に自動作成）
 3. Redeploy
 
 ## 同期の使い方

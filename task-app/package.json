@@ -1,0 +1,7 @@
+{
+  "name": "task-app",
+  "private": true,
+  "dependencies": {
+    "@neondatabase/serverless": "1.2.1"
+  }
+}
