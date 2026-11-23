@@ -23,7 +23,7 @@ LAYOUT: large title, quiet filter row, grouped list or calendar, bottom tab bar 
 :root{color-scheme:light dark;
 --bg:light-dark(#f2f2f4,#000);--card:light-dark(#fff,#151517);--ink:light-dark(#111113,#f5f5f7);
 --sub:light-dark(#8a8a8f,#8d8d93);--faint:light-dark(#c7c7cc,#3a3a3e);--line:light-dark(rgba(0,0,0,.08),rgba(255,255,255,.09));
---fill:light-dark(rgba(0,0,0,.045),rgba(255,255,255,.07));--red:light-dark(#e5484d,#ff6369)}
+--blue:light-dark(#0a6cff,#5aa2ff);--fill:light-dark(rgba(0,0,0,.045),rgba(255,255,255,.07));--red:light-dark(#e5484d,#ff6369)}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;-webkit-font-smoothing:antialiased;overflow-x:clip}
@@ -91,6 +91,19 @@ h1{font-size:34px;line-height:1.1;margin:0;font-weight:700;letter-spacing:-.01em
 .num{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:16px;font-variant-numeric:tabular-nums}
 .cell.out .num{color:var(--faint)}
 .cell.sun .num{color:var(--red)}
+.cell.sat .num{color:var(--blue)}.wk span:last-child{color:var(--blue)}
+.mcal{margin-top:10px;background:var(--bg);border-radius:14px;padding:8px 6px 6px}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:0 2px 4px}.mh b{font-size:15px;font-weight:600}
+.mh button{width:40px;height:40px;border-radius:50%;display:grid;place-items:center}
+.mw,.mg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.mw span{text-align:center;font-size:11px;font-weight:600;color:var(--sub);padding:2px 0 4px}
+.mw .sun,.md.sun{color:var(--red)}.mw .sat,.md.sat{color:var(--blue)}
+.md{height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:15px;font-variant-numeric:tabular-nums;position:relative}
+.md span{width:34px;height:34px;border-radius:50%;display:grid;place-items:center}
+.md i{position:absolute;bottom:2px;width:4px;height:4px;border-radius:50%;background:var(--red)}
+.md.out{opacity:.3}.md.td span{font-weight:700;box-shadow:inset 0 0 0 1.5px currentColor}
+.md.on span{background:var(--ink);color:var(--card);font-weight:600;box-shadow:none}
+.mhol{font-size:12px;color:var(--red);margin:6px 6px 2px;line-height:1.5}
 .hn{display:block;font-size:9px;line-height:1.3;color:var(--red);text-align:center;white-space:nowrap;overflow:hidden;font-weight:600}
 .hname{font-style:normal;color:var(--red);font-weight:600;margin-left:8px}
 .cell.today .num{color:var(--red);font-weight:700}
@@ -298,7 +311,7 @@ function calHTML(){
     if(i===35&&d.getMonth()!==M-1)break;
     const all=map[k]||[], items=all.filter(x=>!x.done);
     const hn=holidayName(k);
-    const cls=[d.getMonth()!==M-1?'out':'',d.getDay()===0||hn?'sun':'',hn?'hol':'',k===t?'today':'',k===calSel?'sel':''].join(' ');
+    const cls=[d.getMonth()!==M-1?'out':'',d.getDay()===0||hn?'sun':d.getDay()===6?'sat':'',hn?'hol':'',k===t?'today':'',k===calSel?'sel':''].join(' ');
     let inner;
     if(mo){const show=all.slice(0,hn?2:3);inner=(hn?`<span class="hn">${hn}</span>`:'')+show.map(x=>`<span class="ev${x.done?' dn':''}" style="--c:${catOf(x.c).color}">${esc(x.t)}</span>`).join('')+(all.length>show.length?`<span class="evm">+${all.length-show.length}</span>`:'')}
     else{const cols=[...new Set(items.map(x=>catOf(x.c).color))].slice(0,3);inner=`<span class="dots">${cols.map(c=>`<i style="background:${c}"></i>`).join('')}</span>`}
@@ -313,7 +326,7 @@ function calHTML(){
     const agenda=days.length?days.map(k=>`<div class="gh${k===t?'':''}" id="d-${k}"><span${k===t?' style="color:var(--red)"':''}>${mdLong(k)}${k===t?'・今日':''}${holidayName(k)?`<em class="hname">${holidayName(k)}</em>`:''}</span><small>${map[k].filter(x=>!x.done).length}件</small></div><div class="group">${map[k].map(x=>itemHTML(x,false)).join('')}</div>`).join(''):`<div class="empty" style="padding-top:28px">この月の Task はありません</div>`;
     const todo=S.tasks.filter(x=>!x.d&&!x.done&&inFilter(x)).sort(byDue);
     const todoH=todo.length?`<div class="gh" id="todo-sec"><span>ToDo</span><small>${todo.length}件</small></div><div class="group">${todo.map(x=>itemHTML(x)).join('')}</div>`:'';
-    return `${seg}<div class="cal">${head}${stat}<div class="wk">${[...W].map(w=>`<span>${w}</span>`).join('')}</div><div class="grid mo">${cells}</div></div>${agenda}${todoH}`;
+    return `${seg}<div class="cal">${head}<div class="wk">${[...W].map(w=>`<span>${w}</span>`).join('')}</div><div class="grid mo">${cells}</div></div>${agenda}${todoH}`;
   }
   const list=map[calSel]||[];
   return `${seg}<div class="cal">${head}<div class="wk">${[...W].map(w=>`<span>${w}</span>`).join('')}</div><div class="grid">${cells}</div></div>
@@ -404,7 +417,8 @@ function taskSheet(x,preset){
     <div class="hr"></div>
     <div class="lbl">期日</div>
     <div class="chips">${opts.map(o=>`<button class="chip" data-d="${o[0]}">${o[1]}</button>`).join('')}
-      <label class="chip" id="sDChip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span id="sDLbl"></span><input type="date" id="sD" value="${st.d||''}"></label></div>
+      <button type="button" class="chip" id="sDChip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span id="sDLbl"></span></button></div>
+    <div id="sCal" class="mcal" hidden></div>
     <div id="sTmRow"><div class="lbl">時刻</div><div class="chips"><button class="chip" data-tm="">指定なし</button><label class="chip" id="sTmChip"><span id="sTmLbl"></span><input type="time" id="sTm" value="${st.tm||''}"></label></div></div>
     <div class="lbl">カテゴリー</div>
     <div class="chips">${S.cats.map(c=>`<button class="chip${st.c===c.id?' on':''}" data-c="${c.id}"><i class="dot" style="background:${c.color}"></i>${esc(c.name)}</button>`).join('')}</div>
@@ -422,12 +436,26 @@ function taskSheet(x,preset){
       $('sTmChip').classList.toggle('on',!!st.tm);$('sTmLbl').textContent=st.tm||'時刻を選ぶ';
       b.querySelectorAll('[data-c]').forEach(e=>e.classList.toggle('on',e.dataset.c===st.c));
     };
-    b.querySelectorAll('[data-d]').forEach(e=>e.onclick=()=>{st.d=e.dataset.d;if(!st.d){st.tm='';$('sTm').value=''}$('sD').value=st.d;sync()});
+    b.querySelectorAll('[data-d]').forEach(e=>e.onclick=()=>{st.d=e.dataset.d;if(!st.d){st.tm='';$('sTm').value=''}$('sCal').hidden=true;sync()});
     b.querySelector('[data-tm]').onclick=()=>{st.tm='';$('sTm').value='';sync()};
     b.querySelectorAll('[data-c]').forEach(e=>e.onclick=()=>{st.c=e.dataset.c;sync()});
-    const onD=e=>{st.d=e.target.value;if(!st.d){st.tm='';$('sTm').value=''}sync()};
+    // アプリ内カレンダー（土曜は青、日曜・祝日は赤）
+    let pm=(st.d||today()).slice(0,7);
+    const drawCal=()=>{
+      const [Y,M]=pm.split('-').map(Number),f=new Date(Y,M-1,1),start=new Date(Y,M-1,1-f.getDay()),t=today();let c='';
+      for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);if(i===35&&d.getMonth()!==M-1)break;
+        const k=ymd(d),hn=holidayName(k),dw=d.getDay();
+        c+=`<button type="button" class="md${d.getMonth()!==M-1?' out':''}${dw===0||hn?' sun':dw===6?' sat':''}${k===t?' td':''}${k===st.d?' on':''}" data-pick="${k}" aria-label="${mdLong(k)}${hn?' '+hn:''}"><span>${d.getDate()}</span><i${hn?'':' hidden'}></i></button>`}
+      const hs=Object.entries(holidaysOf(Y)).filter(([k])=>k.slice(0,7)===pm).sort().map(([k,n])=>`${+k.slice(8)}日 ${n}`).join('　');
+      $('sCal').innerHTML=`<div class="mh"><button type="button" data-pm="-1" aria-label="前の月"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><b>${Y}年${M}月</b><button type="button" data-pm="1" aria-label="次の月"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button></div><div class="mw">${[...W].map((w,i)=>`<span class="${i===0?'sun':i===6?'sat':''}">${w}</span>`).join('')}</div><div class="mg">${c}</div>${hs?`<p class="mhol">${hs}</p>`:''}`;
+    };
+    $('sCal').onclick=e=>{
+      const nb=e.target.closest('[data-pm]');if(nb){const [y,m]=pm.split('-').map(Number);pm=ymd(new Date(y,m-1+(+nb.dataset.pm),1)).slice(0,7);return drawCal()}
+      const pk=e.target.closest('[data-pick]');if(pk){st.d=pk.dataset.pick;$('sCal').hidden=true;sync()}
+    };
+    $('sDChip').onclick=()=>{const c=$('sCal');c.hidden=!c.hidden;if(!c.hidden){pm=(st.d||today()).slice(0,7);drawCal();setTimeout(()=>c.scrollIntoView({block:'nearest',behavior:'smooth'}),30)}};
     const onTm=e=>{st.tm=e.target.value;sync()};
-    $('sD').addEventListener('change',onD);$('sD').addEventListener('input',onD);
+
     $('sTm').addEventListener('change',onTm);$('sTm').addEventListener('input',onTm);
     sync();
     $('sT').onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$('sSave').click()}};
