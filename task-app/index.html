@@ -123,7 +123,9 @@ h1{font-size:34px;line-height:1.1;margin:0;font-weight:700;letter-spacing:-.01em
 .heard{font-size:14px;color:var(--sub);min-height:0;margin:-4px 0 6px}
 .heard:empty{display:none}
 .big::placeholder,.note::placeholder{color:var(--faint)}
-.note{width:100%;border:0;background:none;font-size:15px;color:var(--sub);resize:none;outline:none;min-height:44px;padding:0 0 8px}
+.note{width:100%;border:0;background:none;font-size:16px;line-height:1.5;color:var(--sub);resize:none;outline:none;min-height:48px;padding:0 0 8px;overflow-y:auto;display:block}
+body.lock{overflow:hidden}
+.sheet{overscroll-behavior:contain}
 .lbl{font-size:12px;color:var(--sub);font-weight:600;margin:14px 0 8px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{height:36px;padding:0 13px;border-radius:18px;background:var(--fill);font-size:14px;display:flex;align-items:center;gap:6px;font-weight:500;position:relative}
@@ -354,8 +356,16 @@ function stopVoice(){
 })();
 
 /* ---------- sheets ---------- */
-function openSheet(html,after){$('sheetBody').innerHTML=html;$('sheet').classList.add('show');$('scrim').classList.add('show');after&&after()}
-function closeSheet(){stopVoice();$('sheet').classList.remove('show');$('scrim').classList.remove('show');document.activeElement&&document.activeElement.blur()}
+function fitSheet(){
+  // キーボードが出ても入力欄が隠れたり画面がずれたりしないよう、見えている範囲に合わせる
+  const vv=window.visualViewport,sh=$('sheet');if(!sh)return;
+  if(!vv||!sh.classList.contains('show')){sh.style.bottom='';sh.style.maxHeight='';return}
+  const kb=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);
+  sh.style.bottom=kb+'px';sh.style.maxHeight=Math.round(vv.height*0.92)+'px';
+}
+if(window.visualViewport){visualViewport.addEventListener('resize',fitSheet);visualViewport.addEventListener('scroll',fitSheet)}
+function openSheet(html,after){$('sheetBody').innerHTML=html;$('sheet').scrollTop=0;$('sheet').classList.add('show');$('scrim').classList.add('show');document.body.classList.add('lock');after&&after();fitSheet()}
+function closeSheet(){stopVoice();$('sheet').classList.remove('show');$('scrim').classList.remove('show');document.body.classList.remove('lock');document.activeElement&&document.activeElement.blur();fitSheet()}
 $('scrim').onclick=closeSheet;
 
 function taskSheet(x,preset){
@@ -376,6 +386,8 @@ function taskSheet(x,preset){
     <div class="chips">${S.cats.map(c=>`<button class="chip${st.c===c.id?' on':''}" data-c="${c.id}"><i class="dot" style="background:${c.color}"></i>${esc(c.name)}</button>`).join('')}</div>
     ${isNew?'':'<button class="del" id="sDel">Task を削除</button>'}`;
     const b=$('sheetBody'), keep=()=>{st.t=$('sT').value;st.n=$('sN').value};
+    const nEl=$('sN'),grow=()=>{nEl.style.height='auto';nEl.style.height=Math.min(nEl.scrollHeight,Math.round((window.visualViewport?visualViewport.height:innerHeight)*0.35))+'px'};
+    nEl.addEventListener('input',()=>{st.n=nEl.value;grow()});nEl.addEventListener('focus',()=>setTimeout(()=>{fitSheet();nEl.scrollIntoView({block:'nearest'})},300));grow();
     // 期日・時刻・カテゴリーは画面を作り直さずにその場で更新（iPhone の日付選択が閉じないように）
     const sync=()=>{
       const custom=!!st.d&&!opts.some(o=>o[0]===st.d);
